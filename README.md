@@ -125,3 +125,41 @@ Each `Worker` is given an `id` and holds a `JoinHandle<()>` from the spawned thr
 ## Why This Is Better Than Spawning Unlimited Threads
 
 If I had simply called `thread::spawn()` inside the request loop for every incoming connection, the server would create a new thread for every single request with no upper bound. Under heavy load or a deliberate flood of requests, this would exhaust system memory and port allocations, effectively crashing the server. The `ThreadPool` approach keeps the concurrency bounded and predictable, which is the correct approach for a production-ready server.
+
+# Reflection Bonus
+
+![Commit Bonus screen capture](assets/images/bonus.png)
+
+In this bonus milestone, I replaced the `new` function with a `build` function that returns a `Result<ThreadPool, PoolCreationError>` instead of panicking directly. This is a small but meaningful change in how errors are communicated and handled.
+
+## The Difference Between `new` and `build`
+
+The `new` function using `assert!(size > 0)` is an **unrecoverable error** approach. If an invalid size is passed, the program immediately panics and crashes with no opportunity for the caller to handle the situation gracefully. This is acceptable when the error is truly a programming mistake that should never happen in production, but it gives the caller no control.
+
+The `build` function instead returns a `Result`, which is Rust's idiomatic way of signaling a **recoverable error**. The caller receives either `Ok(ThreadPool)` if creation succeeded, or `Err(PoolCreationError)` if the size was zero. This means the caller can decide what to do with the failure rather than having the decision forced upon them by a panic.
+
+## The Custom Error Type
+
+I implemented a custom `PoolCreationError` struct and derived `Debug` for it. I also implemented the `fmt::Display` trait so it produces a human-readable message: `"ThreadPool size must be greater than zero."`. Additionally, implementing `std::error::Error` for it makes it compatible with Rust's standard error handling ecosystem, allowing it to be used with `?` operator and `Box<dyn Error>` patterns in larger programs.
+
+## Handling the Error in `main.rs`
+
+In `main.rs`, I intentionally called `ThreadPool::build(0)` to demonstrate the error path. Instead of letting it panic, I used `unwrap_or_else()` to catch the `Err` variant, print the error message to `stderr` using `eprintln!`, and exit the process cleanly with `process::exit(1)`. The output confirms this works correctly:
+
+```
+Problem creating thread pool: ThreadPool size must be greater than zero.
+```
+
+This is a much more user-friendly failure compared to a raw panic stack trace, and it is the approach preferred in production-quality Rust applications.
+
+## Comparing `new` vs `build`
+
+| | `new` | `build` |
+|---|---|---|
+| Return type | `ThreadPool` | `Result<ThreadPool, PoolCreationError>` |
+| Invalid size handling | Panics immediately | Returns `Err` to the caller |
+| Caller control | None | Full, caller decides how to handle the error |
+| Idiomatic use case | Error is a programmer bug that should never happen | Error is something the caller may want to recover from |
+| Rust convention | Common for infallible constructors | Common for fallible constructors |
+
+Overall, `build` is the more robust and flexible design. It follows the same pattern used in the I/O project with `Config::build`, and it aligns with Rust's philosophy of making error handling explicit and composable rather than hiding it behind panics.
