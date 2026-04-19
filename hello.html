@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello from Rust!</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Base page styling and centering */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+        }
+
+        /* The floating card effect */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem 4rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        /* Subtle hover effect for the card */
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a202c;
+            font-size: 2.5rem;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #4a5568;
+            margin-bottom: 2rem;
+        }
+
+        /* Highlighting the word 'Rust' */
+        .rust-text {
+            color: #dd6b20; /* Rust-like orange */
+            font-weight: 700;
+        }
+
+        /* Interactive button styling */
+        .interactive-btn {
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .interactive-btn:hover {
+            background-color: #2c5282;
+        }
+
+        .interactive-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1 id="greeting">Hello! 👋</h1>
+        <p>Hi from <span class="rust-text">Rust</span>, running from aldo's machine.</p>
+        
+        <button class="interactive-btn" onclick="triggerMagic()">Click for magic</button>
+    </div>
+
+    <script>
+        // A little Javascript to add some interactivity
+        function triggerMagic() {
+            const heading = document.getElementById('greeting');
+            const emojis = ['🚀', '✨', '🔥', '🎉', '🦀'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            
+            heading.innerText = `Awesome! ${randomEmoji}`;
+        }
+    </script>
+
+</body>
+</html>
