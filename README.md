@@ -79,3 +79,27 @@ Before refactoring, the `if` and `else` branches were nearly identical. Both bra
 The refactored version solves this by isolating the only two things that actually differ, `status_line` and `filename`, into a single `if`/`else` expression that returns them as a tuple. Rust allows `if`/`else` to be used as an expression that evaluates to a value, which makes this pattern clean and idiomatic. The rest of the logic such as reading the file, computing the length, formatting the response, and writing to the stream now lives in one place outside the conditional, and only runs once regardless of which branch was taken.
 
 This makes the code significantly easier to read and maintain. The separation is clear: the `if`/`else` decides *what* to respond with, and the code below it handles *how* to send it.
+
+# Reflection 4
+
+In this milestone, I simulated a slow request to demonstrate the core limitation of a single-threaded web server. No new server capability was added and the purpose of this milestone is purely to observe and understand the problem that motivates the upgrade to a multithreaded server.
+
+## What Was Added
+
+I added a new route `/sleep` to the request handler. When the server receives a `GET /sleep HTTP/1.1` request, it calls `thread::sleep(Duration::from_secs(10))` before sending back the usual `hello.html` response. This simulates a request that takes a long time to process, such as a heavy database query or an external API call in a real application.
+
+The match block now handles three cases:
+
+- `GET / HTTP/1.1`: responds immediately with `hello.html` and `200 OK`
+- `GET /sleep HTTP/1.1`: sleeps for 10 seconds, then responds with `hello.html` and `200 OK`
+- Anything else: responds with `404.html` and `404 NOT FOUND`
+
+## Observing the Problem
+
+To see the problem, I opened two browser tabs simultaneously. In the first tab I visited `127.0.0.1:7878/sleep`, and in the second tab I visited `127.0.0.1:7878`. The expected behavior would be that the root `/` request responds instantly regardless of what other requests are happening. However, what actually happens is that the second tab is completely frozen and cannot load until the `/sleep` request in the first tab finishes its 10 second sleep.
+
+This happens because the server runs on a single thread. The `for stream in listener.incoming()` loop processes one connection at a time in sequence. While the thread is blocked inside `thread::sleep()` handling the `/sleep` request, no other connection can be accepted or processed. The server is essentially unresponsive to the entire world for those 10 seconds.
+
+## Why This Is a Serious Problem
+
+In a real-world scenario, this behavior is unacceptable. A single slow request, whether due to a heavy computation, a database timeout, or a slow external API, would stall every other user trying to access the server. If many users hit the server simultaneously, they would all queue up behind each other and response times would grow linearly with the number of concurrent requests. This is the fundamental motivation for introducing concurrency into the server.
