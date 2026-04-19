@@ -59,3 +59,23 @@ Finally, `stream.write_all(response.as_bytes())` converts the response string in
 For the HTML file itself, I created a styled page using CSS with a centered card layout, a gradient background, and a Google Fonts import for the Inter typeface. I also added a small JavaScript function `triggerMagic()` that randomly changes the heading emoji when the button is clicked to demonstrate that the server is serving a fully functional HTML document, not just plain text, since the browser correctly executes the embedded CSS and JavaScript.
 
 One thing worth noting is that even though our server has no concept of CSS, JavaScript, or fonts, it doesn't need to. It simply serves the raw HTML file, and the browser takes care of parsing and executing everything inside it, including fetching the Google Fonts stylesheet from an external URL. This highlights the separation of concerns between the server (delivering content) and the browser (rendering and executing it).
+
+# Reflection 3
+
+![Commit 3 screen capture](assets/images/commit3.png)
+
+In this milestone, I added request validation so that the server no longer blindly returns `hello.html` for every request. Instead, it now inspects the first line of the HTTP request and selectively responds based on what path was requested.
+
+## How Request Validation Works
+
+Previously, the server read all request headers into a `Vec<String>` and ignored them entirely when building the response. Now, I extract the first line of that vector as `request_line` and compare it against `"GET / HTTP/1.1"`. If it matches, the server responds with `hello.html` and a `200 OK` status. If it does not match, meaning the browser requested any other path, the server responds with `404.html` and a `404 NOT FOUND` status.
+
+This is the fundamental mechanism behind how real web servers route requests. The first line of every HTTP request always follows the format `METHOD PATH HTTP/VERSION`, so checking it is sufficient to determine what the client wants.
+
+## Why Refactoring Was Needed
+
+Before refactoring, the `if` and `else` branches were nearly identical. Both branches read a file, calculated its length, formatted a response string, and wrote it to the stream. The only difference between the two was the `status_line` value and the `filename` being read. This is a clear violation of the Don't Repeat Yourself (DRY) principle. If I ever wanted to change how the response is formatted, I would have to update the same logic in two separate places, which is error-prone.
+
+The refactored version solves this by isolating the only two things that actually differ, `status_line` and `filename`, into a single `if`/`else` expression that returns them as a tuple. Rust allows `if`/`else` to be used as an expression that evaluates to a value, which makes this pattern clean and idiomatic. The rest of the logic such as reading the file, computing the length, formatting the response, and writing to the stream now lives in one place outside the conditional, and only runs once regardless of which branch was taken.
+
+This makes the code significantly easier to read and maintain. The separation is clear: the `if`/`else` decides *what* to respond with, and the code below it handles *how* to send it.
