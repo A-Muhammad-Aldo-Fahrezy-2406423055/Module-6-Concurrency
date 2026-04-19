@@ -103,3 +103,25 @@ This happens because the server runs on a single thread. The `for stream in list
 ## Why This Is a Serious Problem
 
 In a real-world scenario, this behavior is unacceptable. A single slow request, whether due to a heavy computation, a database timeout, or a slow external API, would stall every other user trying to access the server. If many users hit the server simultaneously, they would all queue up behind each other and response times would grow linearly with the number of concurrent requests. This is the fundamental motivation for introducing concurrency into the server.
+
+# Reflection 5
+
+![Commit 5 screen capture](assets/images/commit5.png)
+
+In this milestone, I upgraded the server from single-threaded to multithreaded by implementing a `ThreadPool`. This directly solves the problem demonstrated in Milestone 4, where a slow request to `/sleep` would block every other incoming request from being handled until it finished.
+
+## How ThreadPool Works
+
+A `ThreadPool` is created with a fixed number of worker threads that are spawned upfront when the pool is initialized. Rather than spawning a new thread for every incoming request (which would be dangerous and vulnerable to DoS attacks as mentioned in the module), the pool reuses a pre-allocated set of threads. The number of threads is bounded, meaning the server can handle at most `N` requests concurrently, where `N` is the pool size.
+
+Each worker thread sits in a loop waiting for a job to be sent through a shared channel. When `ThreadPool::execute()` is called with a closure (the request handler), the closure is sent into the channel as a `Job`. Whichever worker thread is idle will pick it up and execute it. This is the classic **Multiple Producer Single Consumer (mpsc)** pattern where the main thread produces jobs and the worker threads consume them.
+
+## Key Rust Concepts Used
+
+To share the receiving end of the channel across multiple worker threads, I had to wrap it in `Arc<Mutex<>>`. The `Arc` (Atomic Reference Counted) allows multiple threads to hold ownership of the receiver simultaneously, while the `Mutex` ensures only one worker can pull a job from the channel at a time, preventing race conditions. This is a direct application of the shared memory concurrency model discussed in the module.
+
+Each `Worker` is given an `id` and holds a `JoinHandle<()>` from the spawned thread. The thread runs a loop that locks the receiver, waits for a job, and executes it. The use of `lock().unwrap()` on the `Mutex` acquires the lock before pulling from the channel, ensuring mutual exclusion across all workers.
+
+## Why This Is Better Than Spawning Unlimited Threads
+
+If I had simply called `thread::spawn()` inside the request loop for every incoming connection, the server would create a new thread for every single request with no upper bound. Under heavy load or a deliberate flood of requests, this would exhaust system memory and port allocations, effectively crashing the server. The `ThreadPool` approach keeps the concurrency bounded and predictable, which is the correct approach for a production-ready server.
