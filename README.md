@@ -40,3 +40,22 @@ When visiting `127.0.0.1:7878` with the server running, the browser shows an err
 - **"Didn't send any data"** means the TCP connection was successfully established. This indicates that our Rust server accepted it and even printed "Connection established!", but then sent nothing back. The browser completed the handshake, waited for an HTTP response, and received only silence before the connection closed. Since we haven't written any response logic yet in this milestone, our server simply drops the stream after printing the request, causing the browser to complain that it got no data.
 
 This distinction confirms that our server is working correctly at the TCP level. The connection is being accepted and the request is being read. What is missing so far is the part where the server writes an HTTP response back to the stream, which will be addressed in the next milestone.
+
+# Reflection 2
+
+![Commit 2 screen capture](assets/images/commit2.png)
+
+In this milestone, I modified the `handle_connection` function so that the server now sends back an actual HTTP response that the browser can render, rather than just printing the request and closing the connection silently.
+
+The key changes were adding `fs` to the imports and constructing a proper HTTP response string. The `fs::read_to_string("hello.html")` call reads the entire HTML file into a `String`. The response is then built using `format!()` with three parts separated by `\r\n` as required by the HTTP/1.1 protocol:
+
+- **Status line**:`HTTP/1.1 200 OK` tells the browser the request was successful.
+- **Headers**: `Content-Length: {length}` tells the browser exactly how many bytes to expect in the body, so it knows when the response ends.
+- **Blank line**: The `\r\n\r\n` sequence separates the headers from the body, which is a strict requirement of the HTTP spec.
+- **Body**: The actual HTML content read from `hello.html`.
+
+Finally, `stream.write_all(response.as_bytes())` converts the response string into raw bytes and writes it back to the TCP stream, which is what the browser receives and renders.
+
+For the HTML file itself, I created a styled page using CSS with a centered card layout, a gradient background, and a Google Fonts import for the Inter typeface. I also added a small JavaScript function `triggerMagic()` that randomly changes the heading emoji when the button is clicked to demonstrate that the server is serving a fully functional HTML document, not just plain text, since the browser correctly executes the embedded CSS and JavaScript.
+
+One thing worth noting is that even though our server has no concept of CSS, JavaScript, or fonts, it doesn't need to. It simply serves the raw HTML file, and the browser takes care of parsing and executing everything inside it, including fetching the Google Fonts stylesheet from an external URL. This highlights the separation of concerns between the server (delivering content) and the browser (rendering and executing it).
